@@ -186,15 +186,15 @@ struct SpectrumSettings {
     ModulationType modulationType;
 } settings = {STEPS_64,
               S_STEP_25_0kHz,
-              50000,
-              1200,
-              50,
+              80000,
+              800,
+              0,
               false,
               0,
               true,
               BK4819_FILTER_BW_WIDE,
               BK4819_FILTER_BW_WIDE,
-              MOD_FM };
+              false};
 
 static const uint8_t DrawingEndY = 42;
 
@@ -381,7 +381,7 @@ uint32_t GetFStart() {
     return IsCenterMode() ? currentFreq - (GetBW() >> 1) : currentFreq;
 }
 uint32_t GetFEnd() { return currentFreq + GetBW(); }
-uint32_t GetPeakF() { return peak.f; }// +settings.stillOffset; }
+uint32_t GetPeakF() { return peak.f + settings.stillOffset; }
 
 static void DeInitSpectrum() {
     SetF(currentFreq);
@@ -599,11 +599,7 @@ static void DrawSpectrum() {
 
 static void DrawStatus() {
     char String[32];
-    //test
-    //sprintf(String, "1234567asdfg");
-    //GUI_DisplaySmallest(String, 1, 2, true, true);
-    //return;
-    //
+
     if (settings.isStillMode) {
         sprintf(String, "Df: %2.1fkHz %s %s", settings.stillOffset * 1e-2,
                 modulationTypeOptions[settings.modulationType],
@@ -615,15 +611,10 @@ static void DrawStatus() {
             GUI_DisplaySmallest(String, 88, 2, true, true);
         }
     } else {
-       // sprintf(String, "%dx%3.2fk %1.1fms %s %s", GetStepsCount(),
-            sprintf(String, "%dx%u0 %uus %s %s RSSI:%u", GetStepsCount(),
-               // GetScanStep() * 1e-2,
-                GetScanStep() ,
-                //settings.scanDelay * 1e-3,
-                settings.scanDelay ,
+        sprintf(String, "%dx%3.2fk %1.1fms %s %s", GetStepsCount(),
+                GetScanStep() * 1e-2, settings.scanDelay * 1e-3,
                 modulationTypeOptions[settings.modulationType],
-                bwOptions[settings.listenBw],
-                settings.rssiTriggerLevel);
+                bwOptions[settings.listenBw]);
         GUI_DisplaySmallest(String, 1, 2, true, true);
     }
 }
@@ -631,27 +622,21 @@ static void DrawStatus() {
 static void DrawNums() {
     char String[16];
 
-    //sprintf(String, "%3.4f", GetPeakF() * 1e-5);
-    sprintf(String, "%lu", GetPeakF() );
+    sprintf(String, "%3.4f", GetPeakF() * 1e-5);
     UI_PrintStringC(String, 2, 127, 0, 8, 1);
 
     if (IsCenterMode()) {
-        //sprintf(String, "%04.5f \xB1%1.2fk", currentFreq * 1e-5,
-        //settings.frequencyChangeStep * 1e-2);
-            sprintf(String, "%lu \xB1%luk", currentFreq ,
-                settings.frequencyChangeStep );
+        sprintf(String, "%04.5f \xB1%1.2fk", currentFreq * 1e-5,
+                settings.frequencyChangeStep * 1e-2);
         GUI_DisplaySmallest(String, 36, 49, false, true);
     } else {
-        //sprintf(String, "%04.5f", GetFStart() * 1e-5);
-        sprintf(String, "%lu", GetFStart());
+        sprintf(String, "%04.5f", GetFStart() * 1e-5);
         GUI_DisplaySmallest(String, 0, 49, false, true);
 
-        //sprintf(String, "\xB1%1.0fk", settings.frequencyChangeStep * 1e-2);
-        sprintf(String, "\xB1%luk", settings.frequencyChangeStep);
+        sprintf(String, "\xB1%1.0fk", settings.frequencyChangeStep * 1e-2);
         GUI_DisplaySmallest(String, 56, 49, false, true);
 
-        //sprintf(String, "%04.5f", GetFEnd() * 1e-5);
-        sprintf(String, "%lu", GetFEnd() );
+        sprintf(String, "%04.5f", GetFEnd() * 1e-5);
         GUI_DisplaySmallest(String, 93, 49, false, true);
     }
 }
@@ -709,14 +694,14 @@ static void OnKeyDown(uint8_t key) {
             if (settings.scanDelay < 8000) {
                 settings.scanDelay += 100;
                 rssiMin = 255;
-                settings.rssiTriggerLevel = 50;
+                settings.rssiTriggerLevel = 0;
             }
             break;
         case KEY_7:
             if (settings.scanDelay > 400) {
                 settings.scanDelay -= 100;
                 rssiMin = 255;
-                settings.rssiTriggerLevel = 50;
+                settings.rssiTriggerLevel = 0;
             }
             break;
         case KEY_3:
@@ -1012,7 +997,7 @@ static void Tick() {
 
 void APP_RunSpectrum() {
     // TX here coz it always? set to active VFO
-    currentFreq = 43840000u;
+    currentFreq = 43850000u;
 
     R30 = BK4819_ReadRegister(0x30);
     R37 = BK4819_ReadRegister(0x37);
@@ -1032,8 +1017,6 @@ void APP_RunSpectrum() {
     ToggleRX(true), ToggleRX(false);
     isInitialized = true;
     RenderStatus();
-
-    SYSTEM_DelayMs(400);
     while (isInitialized) {
         Tick();
     }
