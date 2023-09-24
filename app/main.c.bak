@@ -25,7 +25,7 @@
 #include "app/main.h"
 #include "app/scanner.h"
 #ifdef ENABLE_fagciSPTM
-#include "app/spectrum.h"
+	#include "app/spectrum.h"
 #endif
 #include "audio.h"
 #include "dtmf.h"
@@ -164,16 +164,7 @@ static void processFKeyFunction(const KEY_Code_t Key, const bool beep)
 			break;
 
 		case KEY_5:
-
-			#ifdef ENABLE_fagciSPTM
-			gBeepToPlay = BEEP_500HZ_60MS_DOUBLE_BEEP_OPTIONAL;
-		 APP_RunSpectrum();
-            gRequestDisplayScreen = DISPLAY_MAIN;
-
-			#endif
-		
-			break;
-			/*#ifdef ENABLE_NOAA
+			#ifdef ENABLE_NOAA
 				if (IS_NOT_NOAA_CHANNEL(gTxVfo->CHANNEL_SAVE))
 				{
 					gEeprom.ScreenChannel[Vfo] = gEeprom.NoaaChannel[gEeprom.TX_CHANNEL];
@@ -216,7 +207,7 @@ static void processFKeyFunction(const KEY_Code_t Key, const bool beep)
 				gRequestDisplayScreen = gScreenToDisplay;
 			#endif
 			break;
-*/
+
 		case KEY_6:
 			ACTION_Power();
 			break;

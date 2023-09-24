@@ -82,6 +82,24 @@ void UI_PrintString(const char *pString, uint8_t Start, uint8_t End, uint8_t Lin
 	}
 }
 
+#ifdef ENABLE_fagciSPTM
+void UI_PrintStringC(const char* pString, uint8_t Start, uint8_t End, uint8_t Line, uint8_t Width, bool bCentered)
+{
+	uint32_t i, Length;
+
+	Length = strlen(pString);
+	if (bCentered) {
+		Start += (((End - Start) - (Length * Width)) + 1) / 2;
+	}
+	for (i = 0; i < Length; i++) {
+		if (pString[i] - ' ' < 0x5F) {
+			uint8_t Index = pString[i] - ' ';
+			memcpy(gFrameBuffer[Line + 0] + (i * Width) + Start, &gFontBig[Index][0], 8);
+			memcpy(gFrameBuffer[Line + 1] + (i * Width) + Start, &gFontBig[Index][8], 8);
+		}
+	}
+}
+#endif
 void UI_PrintStringSmall(const char *pString, uint8_t Start, uint8_t End, uint8_t Line)
 {
 	const size_t Length = strlen(pString);
