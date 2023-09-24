@@ -665,7 +665,7 @@ void BK4819_SetupSquelch(
 	// REG_4E <10: 9> 7 Squelch = 0 Delay Setting
 	// REG_4E < 7: 0> 8 Glitch threshold for Squelch = 1
 	//
-	#if 1
+	#if 0
 		BK4819_WriteRegister(BK4819_REG_4E, 0x6F00 | SquelchOpenGlitchThresh);
 	#else
 		// https://github.com/fagci/uv-k5-firmware-fagci-mod
