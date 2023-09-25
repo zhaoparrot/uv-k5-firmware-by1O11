@@ -599,13 +599,9 @@ static void DrawSpectrum() {
 
 static void DrawStatus() {
     char String[32];
-    //test
-    //sprintf(String, "1234567asdfg");
-    //GUI_DisplaySmallest(String, 1, 2, true, true);
-    //return;
-    //
     if (settings.isStillMode) {
-        sprintf(String, "Df: %2.1fkHz %s %s", settings.stillOffset * 1e-2,
+        //sprintf(String, "Df: %2.1fkHz %s %s", settings.stillOffset * 1e-2,
+            sprintf(String, "Df: %d.%lukHz %s %s",(int)(settings.stillOffset * 1e-2), settings.stillOffset % 100,
                 modulationTypeOptions[settings.modulationType],
                 bwOptions[settings.listenBw]);
         GUI_DisplaySmallest(String, 1, 2, true, true);
@@ -616,11 +612,13 @@ static void DrawStatus() {
         }
     } else {
        // sprintf(String, "%dx%3.2fk %1.1fms %s %s", GetStepsCount(),
-            sprintf(String, "%dx%u0 %uus %s %s RSSI:%u", GetStepsCount(),
+            sprintf(String, "%dx%uHz %u.%.1ums %s %s RSSI:%u", GetStepsCount(),
                // GetScanStep() * 1e-2,
-                GetScanStep() ,
+                GetScanStep() / 100,
+                //GetScanStep() %1000,
                 //settings.scanDelay * 1e-3,
-                settings.scanDelay ,
+                settings.scanDelay / 1000,
+                (settings.scanDelay % 1000)/100,
                 modulationTypeOptions[settings.modulationType],
                 bwOptions[settings.listenBw],
                 settings.rssiTriggerLevel);
@@ -632,26 +630,26 @@ static void DrawNums() {
     char String[16];
 
     //sprintf(String, "%3.4f", GetPeakF() * 1e-5);
-    sprintf(String, "%lu", GetPeakF() );
+    sprintf(String, "%lu.%lu", GetPeakF() / 100000, GetPeakF() % 100000);
     UI_PrintStringC(String, 2, 127, 0, 8, 1);
 
     if (IsCenterMode()) {
         //sprintf(String, "%04.5f \xB1%1.2fk", currentFreq * 1e-5,
         //settings.frequencyChangeStep * 1e-2);
-            sprintf(String, "%lu \xB1%luk", currentFreq ,
-                settings.frequencyChangeStep );
+            sprintf(String, "%lu.%lu \xB1%luk", currentFreq / 100000, currentFreq % 100000,
+                settings.frequencyChangeStep/100 );
         GUI_DisplaySmallest(String, 36, 49, false, true);
     } else {
         //sprintf(String, "%04.5f", GetFStart() * 1e-5);
-        sprintf(String, "%lu", GetFStart());
+        sprintf(String, "%lu.%05lu", GetFStart()/100000, GetFStart() % 100000);
         GUI_DisplaySmallest(String, 0, 49, false, true);
 
         //sprintf(String, "\xB1%1.0fk", settings.frequencyChangeStep * 1e-2);
-        sprintf(String, "\xB1%luk", settings.frequencyChangeStep);
+        sprintf(String, "\xB1%luk", settings.frequencyChangeStep/100);
         GUI_DisplaySmallest(String, 56, 49, false, true);
 
         //sprintf(String, "%04.5f", GetFEnd() * 1e-5);
-        sprintf(String, "%lu", GetFEnd() );
+        sprintf(String, "%lu.%05lu", GetFEnd()/100000, GetFEnd() % 100000);
         GUI_DisplaySmallest(String, 93, 49, false, true);
     }
 }
@@ -721,11 +719,11 @@ static void OnKeyDown(uint8_t key) {
             break;
         case KEY_3:
             UpdateScanStep(1);
-            resetBlacklist = true;
+            //resetBlacklist = true;
             break;
         case KEY_9:
             UpdateScanStep(-1);
-            resetBlacklist = true;
+            //resetBlacklist = true;
             break;
         case KEY_2:
             UpdateFreqChangeStep(GetScanStep() * 4);
@@ -739,7 +737,7 @@ static void OnKeyDown(uint8_t key) {
                 break;
             }
             UpdateCurrentFreq(settings.frequencyChangeStep);
-            resetBlacklist = true;
+            //resetBlacklist = true;
             break;
         case KEY_DOWN:
             if (menuState != MENU_OFF) {
@@ -747,7 +745,7 @@ static void OnKeyDown(uint8_t key) {
                 break;
             }
             UpdateCurrentFreq(-settings.frequencyChangeStep);
-            resetBlacklist = true;
+            //resetBlacklist = true;
             break;
         case KEY_SIDE1:
             Blacklist();
