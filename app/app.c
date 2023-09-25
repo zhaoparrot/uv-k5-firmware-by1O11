@@ -1728,11 +1728,16 @@ void APP_TimeSlice500ms(void)
 						gAskToDelete     = false;
 
 						#ifdef ENABLE_FMRADIO
-							if (gFmRadioMode && gCurrentFunction != FUNCTION_RECEIVE && gCurrentFunction != FUNCTION_MONITOR && gCurrentFunction != FUNCTION_TRANSMIT)
+						if (gFmRadioMode && gCurrentFunction != FUNCTION_RECEIVE && gCurrentFunction != FUNCTION_MONITOR && gCurrentFunction != FUNCTION_TRANSMIT)
+						{
+							if (gScreenToDisplay != DISPLAY_SCANNER)
 								GUI_SelectNextDisplay(DISPLAY_FM);
-							else
+
+						}
+						else
 						#endif
-								GUI_SelectNextDisplay(DISPLAY_MAIN);
+								if (gScreenToDisplay != DISPLAY_SCANNER)
+							GUI_SelectNextDisplay(DISPLAY_MAIN);
 					}
 				}
 			}
@@ -1808,7 +1813,7 @@ void APP_TimeSlice500ms(void)
 
 	if (gScreenToDisplay == DISPLAY_SCANNER && gScannerEditState == 0 && gScanCssState < SCAN_CSS_STATE_FOUND)
 	{
-		if (++gScanProgressIndicator > 32)
+	/*	if (++gScanProgressIndicator > 32)
 		{
 			if (gScanCssState == SCAN_CSS_STATE_SCANNING && !gScanSingleFrequency)
 				gScanCssState = SCAN_CSS_STATE_FOUND;
@@ -1816,7 +1821,7 @@ void APP_TimeSlice500ms(void)
 				gScanCssState = SCAN_CSS_STATE_FAILED;
 
 			gUpdateStatus = true;
-		}
+		}*/
 
 		gUpdateDisplay = true;
 	}

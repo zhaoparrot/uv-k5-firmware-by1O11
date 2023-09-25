@@ -23,6 +23,10 @@
 void UI_GenerateChannelString(char *pString, const uint8_t Channel);
 void UI_GenerateChannelStringEx(char *pString, const bool bShowPrefix, const uint8_t ChannelNumber);
 void UI_PrintString(const char *pString, uint8_t Start, uint8_t End, uint8_t Line, uint8_t Width);
+
+//#ifdef ENABLE_fagciSPTM
+void UI_PrintStringC(const char* pString, uint8_t Start, uint8_t End, uint8_t Line, uint8_t Width, bool bCentered);
+//#endif
 void UI_PrintStringSmall(const char *pString, uint8_t Start, uint8_t End, uint8_t Line);
 #ifdef ENABLE_SMALL_BOLD
 	void UI_PrintStringSmallBold(const char *pString, uint8_t Start, uint8_t End, uint8_t Line);
