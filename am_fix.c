@@ -92,14 +92,20 @@ const uint8_t orig_pga       = 6;   //  -3dB
 	//           1 = -27dB
 	//           0 = -33dB
 
-	// front end register dB values - needs a measuring/calibration update really
+	// front end register dB values
+	//
+	// these values need to be accurate for the code to properly/reliably switch
+	// between table entries when adjusting the front end registers.
+	//
+	// these 4 tables need a measuring/calibration update
+	//
 //	static const int16_t lna_short_dB[] = {-19, -16, -11,   0};   // was
 	static const int16_t lna_short_dB[] = {-33, -30  -24,   0};   // corrected'ish
 	static const int16_t lna_dB[]       = {-24, -19, -14,  -9, -6, -4, -2, 0};
 	static const int16_t mixer_dB[]     = { -8,  -6,  -3,   0};
 	static const int16_t pga_dB[]       = {-33, -27, -21, -15, -9, -6, -3, 0};
 
-	// lookup table is by far easier than writing code to do the same
+	// lookup table is hugely easier than writing code to do the same
 	//
 	static const t_am_fix_gain_table am_fix_gain_table[] =
 	{
@@ -115,7 +121,7 @@ const uint8_t orig_pga       = 6;   //  -3dB
 		{2, 2, 3, 6},         // 3 .. -24dB  -14dB   0dB  -3dB .. -41dB
 		{3, 2, 3, 6}          // 4 ..   0dB  -14dB   0dB  -3dB .. -17dB
 	};
-	
+
 	const unsigned int original_index = 1;
 
 #elif 0
@@ -282,13 +288,14 @@ const uint8_t orig_pga       = 6;   //  -3dB
 
 #endif
 
-	// current table index we're using
 	#ifdef ENABLE_AM_FIX_TEST1
-		unsigned int am_fix_gain_table_index = 1;
+		unsigned int am_fix_gain_table_index[2] = {1 + gSetting_AM_fix_test1, 1 + gSetting_AM_fix_test1};
 	#else
-		unsigned int am_fix_gain_table_index = original_index; // start with original QS setting
+		unsigned int am_fix_gain_table_index[2] = {original_index, original_index};
 	#endif
-	unsigned int am_fix_gain_table_index_prev = 0;
+
+	// used to simply detect we've changed our table index/register settings
+	unsigned int am_fix_gain_table_index_prev[2] = {0, 0};
 
 	// moving average RSSI buffer
 	// helps smooth out any spikey RSSI readings
@@ -297,44 +304,48 @@ const uint8_t orig_pga       = 6;   //  -3dB
 		unsigned int index;         // read/write buffer index
 		uint16_t     samples[4];    // 40ms long buffer (10ms RSSI sample rate)
 		uint16_t     sum;           // sum of all samples in the buffer
-	} moving_avg_rssi = {0};
+	} moving_avg_rssi[2] = {0};
 
-	// used to prevent gain hunting, provides a peak hold time delay
-	unsigned int am_gain_hold_counter = 0;
+	// to help reduce gain hunting, provides a peak hold time delay
+	unsigned int am_gain_hold_counter[2] = {0, 0};
 
 	// used to correct the RSSI readings after our front end gain adjustments
-	int16_t rssi_db_gain_diff = 0;
+	int16_t rssi_db_gain_diff[2] = {0, 0};
 
-	void AM_fix_reset(void)
-	{
+	void AM_fix_reset(const int vfo)
+	{	// reset the AM fixer
+
 		// reset the moving average filter
-		memset(&moving_avg_rssi, 0, sizeof(moving_avg_rssi));
+		memset(&moving_avg_rssi[vfo], 0, sizeof(moving_avg_rssi[vfo]));
 
-		am_gain_hold_counter = 0;
+		am_gain_hold_counter[vfo] = 0;
 
-		rssi_db_gain_diff = 0;
+		rssi_db_gain_diff[vfo] = 0;
 
 		#ifdef ENABLE_AM_FIX_TEST1
-			am_fix_gain_table_index = 1 + gSetting_AM_fix_test1;
+			am_fix_gain_table_index[vfo] = 1 + gSetting_AM_fix_test1;
 		#else
-			am_fix_gain_table_index = original_index;  // re-start with original QS setting
+			am_fix_gain_table_index[vfo] = original_index;  // re-start with original QS setting
 		#endif
-		am_fix_gain_table_index_prev = 0;
+
+		am_fix_gain_table_index_prev[vfo] = 0;
 	}
 
-	void AM_fix_adjust_frontEnd_10ms(void)
+	// adjust the RX RF gain to try and prevent the AM demodulator from
+	// saturating/overloading/clipping (distorted AM audio)
+	//
+	// we're actually doing the BK4819's job for it here, but as the chip
+	// won't/don't do it for itself, we're left to bodging it ourself by
+	// playing with the RF front end gain settings
+	//
+	void AM_fix_adjust_frontEnd_10ms(const int vfo)
 	{
 		#ifndef ENABLE_AM_FIX_TEST1
 			// -89dBm, any higher and the AM demodulator starts to saturate/clip/distort
 			const uint16_t desired_rssi = (-89 + 160) * 2;   // dBm to ADC sample
 		#endif
 
-		// we don't play with the front end gains if in FM mode
-		// they remain as per QS original
-		if (!gRxVfo->IsAM)
-			return;
-
-		// we're in AM mode
+		// but we're not in FM mode, we're in AM mode
 
 		switch (gCurrentFunction)
 		{
@@ -344,7 +355,7 @@ const uint8_t orig_pga       = 6;   //  -3dB
 			case FUNCTION_FOREGROUND:
 				return;
 
-			// only adjust the front end if in one of these modes
+			// only adjust stuff if we're in one of these modes
 			case FUNCTION_RECEIVE:
 			case FUNCTION_MONITOR:
 			case FUNCTION_INCOMING:
@@ -352,67 +363,74 @@ const uint8_t orig_pga       = 6;   //  -3dB
 		}
 
 		// sample the current RSSI level
-		uint16_t rssi = BK4819_GetRSSI();     // supposed 9-bit value (0 .. 511) - never seen that though
+		uint16_t rssi = BK4819_GetRSSI(); // supposed 9-bit value (0 .. 511) - never seen that though
 
 #if 1
-		// compute a moving average RSSI - just smooths any sharp spikes
-		if (moving_avg_rssi.count < ARRAY_SIZE(moving_avg_rssi.samples))
-			moving_avg_rssi.count++;
-		moving_avg_rssi.sum -= moving_avg_rssi.samples[moving_avg_rssi.index];  // subtract the oldest sample
-		moving_avg_rssi.sum += rssi;                                            // add the newest sample
-		moving_avg_rssi.samples[moving_avg_rssi.index] = rssi;                  // save the newest sample
-		if (++moving_avg_rssi.index >= ARRAY_SIZE(moving_avg_rssi.samples))     //
-			moving_avg_rssi.index = 0;                                          //
-		rssi = moving_avg_rssi.sum / moving_avg_rssi.count;                     // compute the average of the past 'n' samples
+		// compute moving average RSSI - helps smooth any sharp spikes/troughs
+		// but can cause gain hunting/oscillation if too long a buffer (.samples)
+		if (moving_avg_rssi[vfo].count < ARRAY_SIZE(moving_avg_rssi[vfo].samples))
+			moving_avg_rssi[vfo].count++;
+		moving_avg_rssi[vfo].sum -= moving_avg_rssi[vfo].samples[moving_avg_rssi[vfo].index];  // subtract the oldest sample
+		moving_avg_rssi[vfo].sum += rssi;                             		               // add the newest sample
+		moving_avg_rssi[vfo].samples[moving_avg_rssi[vfo].index] = rssi;                  // save the newest sample
+		if (++moving_avg_rssi[vfo].index >= ARRAY_SIZE(moving_avg_rssi[vfo].samples)) 		    //
+			moving_avg_rssi[vfo].index = 0;                                          //
+		rssi = moving_avg_rssi[vfo].sum / moving_avg_rssi[vfo].count;                     // compute the average of the past 'n' samples
 #endif
-
-		//gCurrentRSSI[gEeprom.RX_CHANNEL] = rssi - (rssi_db_gain_diff * 2);
 
 #ifdef ENABLE_AM_FIX_TEST1
 
-		am_fix_gain_table_index = 1 + gSetting_AM_fix_test1;
+		// user is manually adjusting a gain register - don't do anything automatically
 
-		if (am_gain_hold_counter > 0)
-			if (--am_gain_hold_counter > 0)
+		am_fix_gain_table_index[vfo] = 1 + gSetting_AM_fix_test1;
+
+		if (am_gain_hold_counter[vfo] > 0)
+		{
+			if (--am_gain_hold_counter[vfo] > 0)
+			{
+				gCurrentRSSI[vfo] = rssi - (rssi_db_gain_diff[vfo] * 2);
 				return;
-
-		am_gain_hold_counter = 250;              // 250ms
+			}
+		}
+		
+		am_gain_hold_counter[vfo] = 250;              // 250ms hold
 
 #else
-	
+
+		// automatically choose a front end gain setting by monitoring the RSSI
+
 		if (rssi > desired_rssi)
 		{	// decrease gain
 
-			if (am_fix_gain_table_index > 1)
-				am_fix_gain_table_index--;
+			if (am_fix_gain_table_index[vfo] > 1)
+				am_fix_gain_table_index[vfo]--;
 
-			am_gain_hold_counter = 50;           // 500ms
+			am_gain_hold_counter[vfo] = 50;           // 500ms hold
 		}
 
-		if (am_gain_hold_counter > 0)
-			am_gain_hold_counter--;
+		if (am_gain_hold_counter[vfo] > 0)
+			am_gain_hold_counter[vfo]--;
 
-		if (am_gain_hold_counter == 0)
-		{	// hold has been released, we're now free to increase gain
-
+		if (am_gain_hold_counter[vfo] == 0)
+			// hold has been released, we're free to increase gain
 			if (rssi < (desired_rssi - 10))      // 5dB hysterisis (helps reduce gain hunting)
-			{	// increase gain
+				// increase gain
+				if (am_fix_gain_table_index[vfo] < (ARRAY_SIZE(am_fix_gain_table) - 1))
+					am_fix_gain_table_index[vfo]++;
 
-				if (am_fix_gain_table_index < (ARRAY_SIZE(am_fix_gain_table) - 1))
-					am_fix_gain_table_index++;
-			}
+		if (am_fix_gain_table_index[vfo] == am_fix_gain_table_index_prev[vfo])
+		{	// no gain changes have been made
+			gCurrentRSSI[vfo] = rssi - (rssi_db_gain_diff[vfo] * 2);
+			return;
 		}
 
-		if (am_fix_gain_table_index == am_fix_gain_table_index_prev)
-			return;    // no gain changes have been made
-		
 #endif
 
 		// apply the new settings to the front end registers
-		const uint16_t lna_short = am_fix_gain_table[am_fix_gain_table_index].lna_short;
-		const uint16_t lna       = am_fix_gain_table[am_fix_gain_table_index].lna;
-		const uint16_t mixer     = am_fix_gain_table[am_fix_gain_table_index].mixer;
-		const uint16_t pga       = am_fix_gain_table[am_fix_gain_table_index].pga;
+		const uint16_t lna_short = am_fix_gain_table[am_fix_gain_table_index[vfo]].lna_short;
+		const uint16_t lna       = am_fix_gain_table[am_fix_gain_table_index[vfo]].lna;
+		const uint16_t mixer     = am_fix_gain_table[am_fix_gain_table_index[vfo]].mixer;
+		const uint16_t pga       = am_fix_gain_table[am_fix_gain_table_index[vfo]].pga;
 		BK4819_WriteRegister(BK4819_REG_13, (lna_short << 8) | (lna << 5) | (mixer << 3) | (pga << 0));
 
 		{	// offset the RSSI reading to the rest of the firmware to cancel out the gain adjustments we make
@@ -421,36 +439,38 @@ const uint8_t orig_pga       = 6;   //  -3dB
 			const int16_t   am_dB_gain = lna_short_dB[lna_short]      + lna_dB[lna]      + mixer_dB[mixer]      + pga_dB[pga];
 
 			// gain difference from original QS setting
-			rssi_db_gain_diff = am_dB_gain - orig_dB_gain;
+			rssi_db_gain_diff[vfo] = am_dB_gain - orig_dB_gain;
 
-			//gCurrentRSSI[gEeprom.RX_CHANNEL] = rssi - (rssi_db_gain_diff * 2);
+			// shall we or sharn't we ?
+			gCurrentRSSI[vfo] = rssi - (rssi_db_gain_diff[vfo] * 2);
 		}
 
 		// remember the new table index
-		am_fix_gain_table_index_prev = am_fix_gain_table_index;
+		am_fix_gain_table_index_prev[vfo] = am_fix_gain_table_index[vfo];
 
 		#ifdef ENABLE_AM_FIX_SHOW_DATA
+			// trigger display update so the user can see the data as it changes
 			gUpdateDisplay = true;
 		#endif
 	}
 
 	#ifdef ENABLE_AM_FIX_SHOW_DATA
 
-		void AM_fix_print_data(char *s)
+		void AM_fix_print_data(const int vfo, char *s)
 		{
 			if (s == NULL)
 				return;
 
 			// fetch current register settings
-			const uint16_t lna_short = am_fix_gain_table[am_fix_gain_table_index].lna_short;
-			const uint16_t lna       = am_fix_gain_table[am_fix_gain_table_index].lna;
-			const uint16_t mixer     = am_fix_gain_table[am_fix_gain_table_index].mixer;
-			const uint16_t pga       = am_fix_gain_table[am_fix_gain_table_index].pga;
+			const uint16_t lna_short = am_fix_gain_table[am_fix_gain_table_index[vfo]].lna_short;
+			const uint16_t lna       = am_fix_gain_table[am_fix_gain_table_index[vfo]].lna;
+			const uint16_t mixer     = am_fix_gain_table[am_fix_gain_table_index[vfo]].mixer;
+			const uint16_t pga       = am_fix_gain_table[am_fix_gain_table_index[vfo]].pga;
 
 			// compute the current front end gain
 			const int16_t dB_gain = lna_short_dB[lna_short] + lna_dB[lna] + mixer_dB[mixer] + pga_dB[pga];
 
-			sprintf(s, "idx %2d %4ddB %3u", am_fix_gain_table_index, dB_gain, BK4819_GetRSSI());
+			sprintf(s, "idx %2d %4ddB %3u", am_fix_gain_table_index[vfo], dB_gain, BK4819_GetRSSI());
 		}
 
 	#endif
