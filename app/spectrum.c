@@ -719,11 +719,11 @@ static void OnKeyDown(uint8_t key) {
             break;
         case KEY_3:
             UpdateScanStep(1);
-            //resetBlacklist = true;
+            resetBlacklist = true;
             break;
         case KEY_9:
             UpdateScanStep(-1);
-            //resetBlacklist = true;
+            resetBlacklist = true;
             break;
         case KEY_2:
             UpdateFreqChangeStep(GetScanStep() * 4);
@@ -737,7 +737,7 @@ static void OnKeyDown(uint8_t key) {
                 break;
             }
             UpdateCurrentFreq(settings.frequencyChangeStep);
-            //resetBlacklist = true;
+            resetBlacklist = true;
             break;
         case KEY_DOWN:
             if (menuState != MENU_OFF) {
@@ -745,7 +745,7 @@ static void OnKeyDown(uint8_t key) {
                 break;
             }
             UpdateCurrentFreq(-settings.frequencyChangeStep);
-            //resetBlacklist = true;
+            resetBlacklist = true;
             break;
         case KEY_SIDE1:
             Blacklist();
