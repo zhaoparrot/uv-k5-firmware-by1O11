@@ -354,7 +354,7 @@ static void SetBW(BK4819_FilterBandwidth_t bw) {
     if (settings.bw == bw) {
         return;
     }
-    BK4819_SetFilterBandwidth(bw = settings.bw);
+    BK4819_SetFilterBandwidth(bw = settings.bw,false);
 }
 
 // Spectrum related
@@ -1024,7 +1024,7 @@ void APP_RunSpectrum() {
     R7E = BK4819_ReadRegister(0x7E);
 
     BK4819_SetFilterBandwidth(
-        BK4819_FILTER_BW_WIDE);  // as in initial settings of spectrum
+        BK4819_FILTER_BW_WIDE,false);  // as in initial settings of spectrum
 
     ResetPeak();
     resetBlacklist = true;
