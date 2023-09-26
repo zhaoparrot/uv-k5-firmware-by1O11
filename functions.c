@@ -116,7 +116,7 @@ void FUNCTION_Select(FUNCTION_Type_t Function)
 
 			#if defined(ENABLE_FMRADIO)
 				if (gFmRadioMode)
-					gFM_RestoreCountdown = 500;
+					gFM_RestoreCountdown_10ms = fm_restore_countdown_10ms;
 			#endif
 
 			if (gDTMF_CallState == DTMF_CALL_STATE_CALL_OUT || gDTMF_CallState == DTMF_CALL_STATE_RECEIVED)
@@ -185,6 +185,9 @@ void FUNCTION_Select(FUNCTION_Type_t Function)
 					break;
 				}
 			#endif
+
+			// if the DTMF decoder is enabled, it destroys the TX audio !! .. 1of11
+			BK4819_DisableDTMF();
 			
 			if (gCurrentVfo->SCRAMBLING_TYPE > 0 && gSetting_ScrambleEnable)
 				BK4819_EnableScramble(gCurrentVfo->SCRAMBLING_TYPE - 1);
@@ -201,6 +204,6 @@ void FUNCTION_Select(FUNCTION_Type_t Function)
 	gSchedulePowerSave         = false;
 
 	#if defined(ENABLE_FMRADIO)
-		gFM_RestoreCountdown   = 0;
+		gFM_RestoreCountdown_10ms = 0;
 	#endif
 }
