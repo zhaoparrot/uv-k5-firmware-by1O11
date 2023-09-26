@@ -78,7 +78,7 @@
 		}
 	}
 #endif
-
+uint8_t  LastIncomeChannel = 0;
 void UI_DisplayMain(void)
 {
 	char               String[16];
@@ -176,16 +176,16 @@ void UI_DisplayMain(void)
 			if (!single_vfo && bIsSameVfo)
 				memmove(pLine0 + 0, BITMAP_VFO_Default, sizeof(BITMAP_VFO_Default));
 			else
-			if (gEeprom.CROSS_BAND_RX_TX != CROSS_BAND_OFF)
+			if (gEeprom.CROSS_BAND_RX_TX != CROSS_BAND_OFF||vfo_num == LastIncomeChannel)
 				memmove(pLine0 + 0, BITMAP_VFO_NotDefault, sizeof(BITMAP_VFO_NotDefault));
 		}
-		else
+		else//Channel == vfo_num
 		if (!single_vfo)
 		{	// highlight the selected/used VFO with a marker
 			if (bIsSameVfo)
 				memmove(pLine0 + 0, BITMAP_VFO_Default, sizeof(BITMAP_VFO_Default));
 			else
-			//if (gEeprom.CROSS_BAND_RX_TX != CROSS_BAND_OFF)
+				if (vfo_num == LastIncomeChannel)
 				memmove(pLine0 + 0, BITMAP_VFO_NotDefault, sizeof(BITMAP_VFO_NotDefault));
 		}
 
@@ -212,7 +212,10 @@ void UI_DisplayMain(void)
 		{	// receiving .. show the RX symbol
 			duff_beer = 2;
 			if ((gCurrentFunction == FUNCTION_RECEIVE || gCurrentFunction == FUNCTION_MONITOR) && gEeprom.RX_CHANNEL == vfo_num)
+			{
 				UI_PrintStringSmall("RX", 14, 0, Line);
+				LastIncomeChannel = gEeprom.RX_CHANNEL;
+			}
 		}
 
 		if (IS_MR_CHANNEL(gEeprom.ScreenChannel[vfo_num]))
