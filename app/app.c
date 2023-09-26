@@ -1734,8 +1734,12 @@ void APP_TimeSlice500ms(void)
 						}
 						else
 						#endif
-								if (gScreenToDisplay != DISPLAY_SCANNER)
-							GUI_SelectNextDisplay(DISPLAY_MAIN);
+
+						#ifdef ENABLE_NO_SCAN_TIMEOUT
+							if (gScreenToDisplay != DISPLAY_SCANNER)
+						#endif
+								GUI_SelectNextDisplay(DISPLAY_MAIN);
+
 					}
 				}
 			}
