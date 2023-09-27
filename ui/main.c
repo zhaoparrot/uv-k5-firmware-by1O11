@@ -240,9 +240,14 @@ void UI_DisplayMain(void)
 			{
 				UI_PrintStringSmall("RX", 14, 0, Line);
 				LastIncomeChannel = gEeprom.RX_CHANNEL;
+				// invert the text pixels
+				for (int i = 13; i < 14+(8 * 2); i++)
+				{
+					gFrameBuffer[Line][i] ^= 0xFF;
+				}
 			}
 		}
-
+		
 		if (IS_MR_CHANNEL(gEeprom.ScreenChannel[vfo_num]))
 		{	// channel mode
 			const unsigned int x = 2;
