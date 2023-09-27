@@ -119,7 +119,9 @@ void GENERIC_Key_PTT(bool bKeyPressed)
 					APP_EndTransmission();
 
 					if (gEeprom.REPEATER_TAIL_TONE_ELIMINATION == 0)
+					{
 						FUNCTION_Select(FUNCTION_FOREGROUND);
+					}
 					else
 						gRTTECountdown = gEeprom.REPEATER_TAIL_TONE_ELIMINATION * 10;
 				}
@@ -129,6 +131,9 @@ void GENERIC_Key_PTT(bool bKeyPressed)
 			}
 
 			RADIO_SetVfoState(VFO_STATE_NORMAL);
+
+			// beep when you release the PTT
+			//gBeepToPlay = BEEP_880HZ_40MS_OPTIONAL;   // 1of11
 
 			gRequestDisplayScreen = DISPLAY_MAIN;
 			return;

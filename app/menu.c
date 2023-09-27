@@ -57,7 +57,7 @@ void MENU_StartCssScan(int8_t Direction)
 
 	MENU_SelectNextCode();
 
-	ScanPauseDelayIn_10ms = 50;
+	ScanPauseDelayIn_10ms = scan_pause_delay_in_2_10ms;
 	gScheduleScanListen   = false;
 }
 
@@ -210,6 +210,10 @@ int MENU_GetLimits(uint8_t Cursor, int32_t *pMin, int32_t *pMax)
 			break;
 
 		case MENU_SCR:
+			*pMin = 0;
+			*pMax = ARRAY_SIZE(gSubMenu_SCRAMBLER) - 1;
+			break;
+
 		case MENU_VOX:
 		case MENU_TOT:
 		case MENU_RP_STE:
@@ -746,7 +750,7 @@ void MENU_SelectNextCode(void)
 
 	RADIO_SetupRegisters(true);
 
-	ScanPauseDelayIn_10ms = (gSelectedCodeType == CODE_TYPE_CONTINUOUS_TONE) ? 20 : 30;
+	ScanPauseDelayIn_10ms = (gSelectedCodeType == CODE_TYPE_CONTINUOUS_TONE) ? scan_pause_delay_in_3_10ms : scan_pause_delay_in_4_10ms;
 
 	gUpdateDisplay = true;
 }
@@ -755,6 +759,7 @@ static void MENU_ClampSelection(int8_t Direction)
 {
 	int32_t Min;
 	int32_t Max;
+
 	if (!MENU_GetLimits(gMenuCursor, &Min, &Max))
 	{
 		int32_t Selection = gSubMenuSelection;
@@ -1108,19 +1113,26 @@ static void MENU_Key_0_to_9(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
 	{
 		switch (gInputBoxIndex)
 		{
-			case 1:
-				Value = gInputBox[0];
+			case 2:
+				gInputBoxIndex = 0;
+
+				Value = (gInputBox[0] * 10) + gInputBox[1];
+				
 				if (Value > 0 && Value <= gMenuListCount)
 				{
 					gMenuCursor         = Value - 1;
 					gFlagRefreshSetting = true;
 					return;
 				}
-				break;
 
-			case 2:
-				gInputBoxIndex = 0;
-				Value          = (gInputBox[0] * 10) + gInputBox[1];
+				if (Value <= gMenuListCount)
+					break;
+
+				gInputBox[0]   = gInputBox[1];
+				gInputBoxIndex = 1;
+					
+			case 1:
+				Value = gInputBox[0];
 				if (Value > 0 && Value <= gMenuListCount)
 				{
 					gMenuCursor         = Value - 1;
