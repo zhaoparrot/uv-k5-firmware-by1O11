@@ -112,6 +112,7 @@ Many thanks to various people on Telegram for putting up with me during this eff
 * @Ismo OH2FTG
 * [OneOfEleven](https://github.com/OneOfEleven)
 * @d1ced95
+* [@fagci](https://github.com/fagci/uv-k5-firmware-fagci-mod/)
 * and others I forget
 
 # License
