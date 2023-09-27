@@ -50,6 +50,7 @@ ENABLE_AUDIO_BAR              := 0       experimental, display an audo bar level
 #ENABLE_COPY_CHAN_TO_VFO      := 1       not yet implemented - copy the channel into the VFO
 #ENABLE_SINGLE_VFO_CHAN       := 1       not yet implemented - single VFO on display when possible
 #ENABLE_BAND_SCOPE            := 1       not yet implemented - spectrum/pan-adapter
+ENABLE_fagciSPTM              := 1       fagci's spectrum - this use alot of flash must disable other stuff
 ```
 
 # Some changes made from the Quansheng firmware
