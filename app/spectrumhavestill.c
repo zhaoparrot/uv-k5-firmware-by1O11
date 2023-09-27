@@ -194,7 +194,7 @@ struct SpectrumSettings {
               true,
               BK4819_FILTER_BW_WIDE,
               BK4819_FILTER_BW_WIDE,
-              0 };
+              MOD_FM };
 
 static const uint8_t DrawingEndY = 42;
 
@@ -367,10 +367,10 @@ static void ResetRSSIHistory() {
     }
 }
 static void ResetPeak() {
-    //if (!settings.isStillMode) {
+    if (!settings.isStillMode) {
         peak.rssi = 0;
         peak.f = 0;
-    //}
+    }
 }
 
 bool IsCenterMode() { return settings.scanStepIndex < S_STEP_2_5kHz; }
@@ -491,24 +491,24 @@ static void UpdateScanStep(int diff) {
 }
 
 static void UpdateCurrentFreq(long int diff) {
-    //if (settings.isStillMode) {
-    //    uint8_t offset = 50;
-    //    switch (settings.modulationType) {
-    //        case MOD_FM:
-    //            offset = 100;
-    //            break;
-    //        case MOD_AM:
-    //            offset = 50;
-    //            break;
-    //        case MOD_USB:
-    //            offset = 10;
-    //            break;
-    //    }
- /*       settings.stillOffset += diff > 0 ? offset : -offset;
+    if (settings.isStillMode) {
+        uint8_t offset = 50;
+        switch (settings.modulationType) {
+            case MOD_FM:
+                offset = 100;
+                break;
+            case MOD_AM:
+                offset = 50;
+                break;
+            case MOD_USB:
+                offset = 10;
+                break;
+        }
+        settings.stillOffset += diff > 0 ? offset : -offset;
         peak.i = (GetPeakF() - GetFStart()) / GetScanStep();
         ResetRSSIHistory();
         return;
-    }*/
+    }
     if ((diff > 0 && currentFreq < F_MAX) ||
         (diff < 0 && currentFreq > F_MIN)) {
         currentFreq += diff;
@@ -599,17 +599,17 @@ static void DrawSpectrum() {
 
 static void DrawStatus() {
     char String[32];
-    if (false) {
-        ////sprintf(String, "Df: %2.1fkHz %s %s", settings.stillOffset * 1e-2,
-        //    sprintf(String, "Df: %d.%lukHz %s %s",(int)(settings.stillOffset * 1e-2), settings.stillOffset % 100,
-        //        modulationTypeOptions[settings.modulationType],
-        //        bwOptions[settings.listenBw]);
-        //GUI_DisplaySmallest(String, 1, 2, true, true);
-        //if (menuState != MENU_OFF) {
-        //    sprintf(String, "%s:%d", menuItems[menuState],
-        //            GetRegMenuValue(menuState));
-        //    GUI_DisplaySmallest(String, 88, 2, true, true);
-        //}
+    if (settings.isStillMode) {
+        //sprintf(String, "Df: %2.1fkHz %s %s", settings.stillOffset * 1e-2,
+            sprintf(String, "Df: %d.%lukHz %s %s",(int)(settings.stillOffset * 1e-2), settings.stillOffset % 100,
+                modulationTypeOptions[settings.modulationType],
+                bwOptions[settings.listenBw]);
+        GUI_DisplaySmallest(String, 1, 2, true, true);
+        if (menuState != MENU_OFF) {
+            sprintf(String, "%s:%d", menuItems[menuState],
+                    GetRegMenuValue(menuState));
+            GUI_DisplaySmallest(String, 88, 2, true, true);
+        }
     } else {
        // sprintf(String, "%dx%3.2fk %1.1fms %s %s", GetStepsCount(),
             sprintf(String, "%dx%uHz %u.%.1ums %s %s RSSI:%u", GetStepsCount(),
@@ -793,7 +793,7 @@ static void OnKeyDown(uint8_t key) {
             }
             break;
         case KEY_PTT:
-            //settings.isStillMode = true;
+            settings.isStillMode = true;
             // TODO: start transmit
             /* if (settings.isStillMode) {
                 BK4819_ToggleGpioOut(BK4819_GPIO0_PIN28_GREEN, false);
@@ -802,24 +802,24 @@ static void OnKeyDown(uint8_t key) {
             ResetRSSIHistory();
             break;
         case KEY_MENU:
-     /*       if (settings.isStillMode) {
+            if (settings.isStillMode) {
                 if (menuState < MENU_RFW) {
                     menuState++;
                 } else {
                     menuState = MENU_AFDAC;
                 }
-            }*/
+            }
             break;
         case KEY_EXIT:
             if (menuState != MENU_OFF) {
                 menuState = MENU_OFF;
                 break;
             }
-            //if (settings.isStillMode) {
-            //    settings.isStillMode = false;
-            //    settings.stillOffset = 0;
-            //    break;
-            //}
+            if (settings.isStillMode) {
+                settings.isStillMode = false;
+                settings.stillOffset = 0;
+                break;
+            }
             DeInitSpectrum();
             break;
     }
@@ -953,7 +953,7 @@ static void Scan() {
         settings.rssiTriggerLevel = rssiMax;
     }
 
-    if (true && (!peak.f || rssiMax > peak.rssi || peak.t >= 16)) {
+    if (!settings.isStillMode && (!peak.f || rssiMax > peak.rssi || peak.t >= 16)) {
         peak.t = 0;
         peak.rssi = rssiMax;
         peak.f = fPeak;
@@ -977,9 +977,9 @@ static void Update() {
     }
 
     ToggleAudio(IsPeakOverLevel());
-    if (false || IsPeakOverLevel()) {
+    if (settings.isStillMode || IsPeakOverLevel()) {
         SetBW(GetBWIndex());
-        if (false && fMeasure != GetPeakF()) {
+        if (settings.isStillMode && fMeasure != GetPeakF()) {
             fMeasure = GetPeakF();
             SetF(fMeasure);
         }
@@ -987,7 +987,7 @@ static void Update() {
         ToggleRX(IsPeakOverLevel());
     }
 
-    if ((!IsPeakOverLevel() && true) || rssiMin == 255) {
+    if ((!IsPeakOverLevel() && !settings.isStillMode) || rssiMin == 255) {
         ToggleAudio(false);
         ToggleRX(false);
         Scan();
