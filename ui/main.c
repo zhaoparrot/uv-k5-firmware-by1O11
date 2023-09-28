@@ -15,6 +15,7 @@
  */
 
 #include <string.h>
+#include <stdlib.h>  // abs()
 
 #include "app/dtmf.h"
 #ifdef ENABLE_AM_FIX_SHOW_DATA
@@ -300,7 +301,14 @@ void UI_DisplayMain(void)
 		{
 			const char *state_list[] = {"", "BUSY", "BAT LOW", "TX DISABLE", "TIMEOUT", "ALARM", "VOLT HIGH"};
 			if (State >= 0 && State < ARRAY_SIZE(state_list))
+			{
 				UI_PrintString(state_list[State], 31, 0, Line, 8);
+			}
+			//else
+			//{
+			//	sprintf(String, "State %u ?", State);
+			//	UI_PrintString(String, 31, 0, Line, 8);
+			//}
 		}
 		else
 		if (gInputBoxIndex > 0 && IS_FREQ_CHANNEL(gEeprom.ScreenChannel[vfo_num]) && gEeprom.TX_CHANNEL == vfo_num)
@@ -433,13 +441,12 @@ void UI_DisplayMain(void)
 					// dBm
 					//
 					// this doesn't yet quite fit into the available screen space
-					const int16_t rssi = gVFO_RSSI[vfo_num];
-					if (rssi > 0)
-					{
-						const int16_t dBm = (rssi / 2) - 160;
-						sprintf(String, "%-3d", dBm);
-						UI_PrintStringSmall(String, 2, 0, Line + 2);
-					}
+					// I suppose the '-' sign could be dropped
+					//
+					const int16_t dBm = (gVFO_RSSI[vfo_num] / 2) - 160;
+					sprintf(String, "%-3d", dBm);
+					//sprintf(String, "%3d", abs(dBm));
+					UI_PrintStringSmall(String, 2, 0, Line + 2);
 				#else
 					// bar graph
 					if (gVFO_RSSI_bar_level[vfo_num] > 0)
