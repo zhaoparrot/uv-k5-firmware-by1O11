@@ -29,7 +29,6 @@
 #include "frequencies.h"
 #include "functions.h"
 #include "misc.h"
-#include "ui/rssi.h"
 
 // original QS front end register settings
 const uint8_t orig_lna_short = 3;   //   0dB
@@ -486,8 +485,8 @@ const uint8_t orig_pga       = 6;   //  -3dB
 			if (s != NULL)
 			{
 				const unsigned int index = gain_table_index[vfo];
-				sprintf(s, "idx %2d %4ddB %3u", index, gain_dB[index], prev_rssi[vfo]);
-				//counter = 1;
+				sprintf(s, "%2u.%u %4ddB %3u", index, ARRAY_SIZE(gain_table) - 1, gain_dB[index], prev_rssi[vfo]);
+				counter = 0;
 			}
 		}
 

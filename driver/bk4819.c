@@ -52,6 +52,7 @@ void BK4819_Init(void)
 	BK4819_WriteRegister(BK4819_REG_36, 0x0022);
 
 	BK4819_SetAGC(0);
+//	BK4819_SetAGC(1);
 
 	BK4819_WriteRegister(BK4819_REG_19, 0b0001000001000001);   // <15> MIC AGC  1 = disable  0 = enable
 
@@ -239,9 +240,9 @@ void BK4819_SetAGC(uint8_t Value)
 		//
 		//         <9:8> = LNA Gain Short
 		//                 3 =   0dB
-		//                 2 = -11dB
-		//                 1 = -16dB
-		//                 0 = -19dB
+		//                 2 = -24dB       // was -11
+		//                 1 = -30dB       // was -16
+		//                 0 = -33dB       // was -19
 		//
 		//         <7:5> = LNA Gain
 		//                 7 =   0dB
@@ -286,7 +287,8 @@ void BK4819_SetAGC(uint8_t Value)
 	}
 	else
 	if (Value == 1)
-	{
+	{	// what does this do ?????????
+
 		unsigned int i;
 
 		// REG_10
@@ -574,7 +576,7 @@ void BK4819_SetFilterBandwidth(const BK4819_FilterBandwidth_t Bandwidth, const b
 			BK4819_WriteRegister(BK4819_REG_43, // 0x3028);         // 0 011 000 000 10 1 0 00
 				(0u << 15) |     //  0
 				(3u << 12) |     //  3 RF filter bandwidth
-				(1u <<  9) |     // *0 RF filter bandwidth when signal is weak
+				(0u <<  9) |     // *0 RF filter bandwidth when signal is weak
 				(6u <<  6) |     // *0 AFTxLPF2 filter Band Width
 				(2u <<  4) |     //  2 BW Mode Selection
 				(1u <<  3) |     //  1
@@ -602,7 +604,7 @@ void BK4819_SetFilterBandwidth(const BK4819_FilterBandwidth_t Bandwidth, const b
 			BK4819_WriteRegister(BK4819_REG_43, // 0x4048);        // 0 100 000 001 00 1 0 00
 				(0u << 15) |     //  0
 				(3u << 12) |     //  4 RF filter bandwidth
-				(1u <<  9) |     // *0 RF filter bandwidth when signal is weak
+				(0u <<  9) |     // *0 RF filter bandwidth when signal is weak
 				(0u <<  6) |     // *1 AFTxLPF2 filter Band Width
 				(0u <<  4) |     //  0 BW Mode Selection
 				(1u <<  3) |     //  1
@@ -1337,7 +1339,7 @@ void BK4819_DisableFrequencyScan(void)
 
 void BK4819_EnableFrequencyScan(void)
 {
-	BK4819_WriteRegister(BK4819_REG_32, 0x0245);
+	BK4819_WriteRegister(BK4819_REG_32, 0x0245);   // 00 0000100100010 1
 }
 
 void BK4819_SetScanFrequency(uint32_t Frequency)

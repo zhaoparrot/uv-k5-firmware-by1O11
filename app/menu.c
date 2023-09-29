@@ -214,8 +214,12 @@ int MENU_GetLimits(uint8_t Cursor, int32_t *pMin, int32_t *pMax)
 			*pMax = ARRAY_SIZE(gSubMenu_SCRAMBLER) - 1;
 			break;
 
-		case MENU_VOX:
 		case MENU_TOT:
+			*pMin = 0;
+			*pMax = ARRAY_SIZE(gSubMenu_TOT) - 1;
+			break;
+
+		case MENU_VOX:
 		case MENU_RP_STE:
 			*pMin = 0;
 			*pMax = 10;
@@ -313,17 +317,16 @@ void MENU_AcceptSetting(void)
 
 		case MENU_SQL:
 			gEeprom.SQUELCH_LEVEL = gSubMenuSelection;
-			gVfoConfigureMode     = VFO_CONFIGURE_1;
+			gVfoConfigureMode     = VFO_CONFIGURE;
 			break;
 
 		case MENU_STEP:
+			gTxVfo->STEP_SETTING = gSubMenuSelection;
 			if (IS_FREQ_CHANNEL(gTxVfo->CHANNEL_SAVE))
 			{
-				gTxVfo->STEP_SETTING = gSubMenuSelection;
-				gRequestSaveChannel  = 1;
+				gRequestSaveChannel = 1;
 				return;
 			}
-			gSubMenuSelection = gTxVfo->STEP_SETTING;
 			return;
 
 		case MENU_TXP:
@@ -415,26 +418,28 @@ void MENU_AcceptSetting(void)
 
 		case MENU_MEM_CH:
 			gTxVfo->CHANNEL_SAVE = gSubMenuSelection;
-			gRequestSaveChannel  = 2;
 			#if 0
 				gEeprom.MrChannel[0] = gSubMenuSelection;
 			#else
 				gEeprom.MrChannel[gEeprom.TX_CHANNEL] = gSubMenuSelection;
 			#endif
+			gRequestSaveChannel = 2;
+			gVfoConfigureMode   = VFO_CONFIGURE_RELOAD;
+			gFlagResetVfos      = true;
 			return;
 
 		case MENU_MEM_NAME:
 			{	// trailing trim
 				for (int i = 9; i >= 0; i--)
 				{
-					if (edit[i] != ' ' && edit[i] != '_' && edit[i] != 0 && edit[i] != 0xff)
+					if (edit[i] != ' ' && edit[i] != '_' && edit[i] != 0x00 && edit[i] != 0xff)
 						break;
 					edit[i] = ' ';
 				}
 			}
 
 			// save the channel name
-			memset(gTxVfo->Name, 0xff, sizeof(gTxVfo->Name));
+			memset(gTxVfo->Name, 0, sizeof(gTxVfo->Name));
 			memmove(gTxVfo->Name, edit, 10);
 			SETTINGS_SaveChannel(gSubMenuSelection, gEeprom.TX_CHANNEL, gTxVfo, 3);
 			gFlagReconfigureVfos = true;
@@ -450,7 +455,7 @@ void MENU_AcceptSetting(void)
 				gEeprom.VOX_LEVEL = gSubMenuSelection - 1;
 			BOARD_EEPROM_LoadMoreSettings();
 			gFlagReconfigureVfos = true;
-			gUpdateStatus = true;
+			gUpdateStatus        = true;
 			break;
 
 		case MENU_ABR:
@@ -507,14 +512,14 @@ void MENU_AcceptSetting(void)
 		case MENU_S_ADD1:
 			gTxVfo->SCANLIST1_PARTICIPATION = gSubMenuSelection;
 			SETTINGS_UpdateChannel(gTxVfo->CHANNEL_SAVE, gTxVfo, true);
-			gVfoConfigureMode = VFO_CONFIGURE_1;
+			gVfoConfigureMode = VFO_CONFIGURE;
 			gFlagResetVfos    = true;
 			return;
 
 		case MENU_S_ADD2:
 			gTxVfo->SCANLIST2_PARTICIPATION = gSubMenuSelection;
 			SETTINGS_UpdateChannel(gTxVfo->CHANNEL_SAVE, gTxVfo, true);
-			gVfoConfigureMode = VFO_CONFIGURE_1;
+			gVfoConfigureMode = VFO_CONFIGURE;
 			gFlagResetVfos    = true;
 			return;
 
@@ -620,8 +625,8 @@ void MENU_AcceptSetting(void)
 			break;
 
 		case MENU_AM:
-			gTxVfo->AM_CHANNEL_MODE = gSubMenuSelection;
-			gRequestSaveChannel     = 1;
+			gTxVfo->AM_mode     = gSubMenuSelection;
+			gRequestSaveChannel = 1;
 			return;
 
 		#ifdef ENABLE_AM_FIX
@@ -1008,7 +1013,7 @@ void MENU_ShowCurrentSetting(void)
 			break;
 
 		case MENU_AM:
-			gSubMenuSelection = gTxVfo->AM_CHANNEL_MODE;
+			gSubMenuSelection = gTxVfo->AM_mode;
 			break;
 
 		#ifdef ENABLE_AM_FIX
@@ -1454,9 +1459,9 @@ static void MENU_Key_STAR(const bool bKeyPressed, const bool bKeyHeld)
 	RADIO_SelectVfos();
 
 	#ifdef ENABLE_NOAA
-		if (IS_NOT_NOAA_CHANNEL(gRxVfo->CHANNEL_SAVE) && !gRxVfo->IsAM)
+		if (IS_NOT_NOAA_CHANNEL(gRxVfo->CHANNEL_SAVE) && gRxVfo->AM_mode == 0)
 	#else
-		if (!gRxVfo->IsAM)
+		if (gRxVfo->AM_mode == 0)
 	#endif
 	{
 		if (gMenuCursor == MENU_R_CTCS || gMenuCursor == MENU_R_DCS)

@@ -59,7 +59,6 @@
 #include "ui/inputbox.h"
 #include "ui/main.h"
 #include "ui/menu.h"
-#include "ui/rssi.h"
 #include "ui/status.h"
 #include "ui/ui.h"
 
@@ -71,7 +70,7 @@ static void updateRSSI(const int vfo)
 
 	#ifdef ENABLE_AM_FIX
 		// add RF gain adjust compensation
-		if (gEeprom.VfoInfo[vfo].IsAM && gSetting_AM_fix)
+		if (gEeprom.VfoInfo[vfo].AM_mode && gSetting_AM_fix)
 			rssi -= rssi_gain_diff[vfo];
 	#endif
 	
@@ -86,7 +85,7 @@ static void updateRSSI(const int vfo)
 static void APP_CheckForIncoming(void)
 {
 	if (!g_SquelchLost)
-		return;
+		return;          // squelch is closed
 
 	// squelch is open
 
@@ -112,7 +111,15 @@ static void APP_CheckForIncoming(void)
 				}
 			#endif
 
-			FUNCTION_Select(FUNCTION_INCOMING);
+			if (gCurrentFunction != FUNCTION_INCOMING)
+			{
+				FUNCTION_Select(FUNCTION_INCOMING);
+				//gUpdateDisplay = true;
+
+				updateRSSI(gEeprom.RX_CHANNEL);
+				gUpdateRSSI = true;
+			}
+			
 			return;
 		}
 
@@ -120,7 +127,14 @@ static void APP_CheckForIncoming(void)
 
 		if (gRxReceptionMode != RX_MODE_NONE)
 		{
-			FUNCTION_Select(FUNCTION_INCOMING);
+			if (gCurrentFunction != FUNCTION_INCOMING)
+			{
+				FUNCTION_Select(FUNCTION_INCOMING);
+				//gUpdateDisplay = true;
+
+				updateRSSI(gEeprom.RX_CHANNEL);
+				gUpdateRSSI = true;
+			}
 			return;
 		}
 
@@ -135,7 +149,14 @@ static void APP_CheckForIncoming(void)
 	{
 		if (gRxReceptionMode != RX_MODE_NONE)
 		{
-			FUNCTION_Select(FUNCTION_INCOMING);
+			if (gCurrentFunction != FUNCTION_INCOMING)
+			{
+				FUNCTION_Select(FUNCTION_INCOMING);
+				//gUpdateDisplay = true;
+
+				updateRSSI(gEeprom.RX_CHANNEL);
+				gUpdateRSSI = true;
+			}
 			return;
 		}
 
@@ -145,7 +166,14 @@ static void APP_CheckForIncoming(void)
 
 	gRxReceptionMode = RX_MODE_DETECTED;
 
-	FUNCTION_Select(FUNCTION_INCOMING);
+	if (gCurrentFunction != FUNCTION_INCOMING)
+	{
+		FUNCTION_Select(FUNCTION_INCOMING);
+		//gUpdateDisplay = true;
+
+		updateRSSI(gEeprom.RX_CHANNEL);
+		gUpdateRSSI = true;
+	}
 }
 
 static void APP_HandleIncoming(void)
@@ -154,8 +182,11 @@ static void APP_HandleIncoming(void)
 
 	if (!g_SquelchLost)
 	{	// squelch is closed
-		FUNCTION_Select(FUNCTION_FOREGROUND);
-		gUpdateDisplay = true;
+		if (gCurrentFunction != FUNCTION_FOREGROUND)
+		{
+			FUNCTION_Select(FUNCTION_FOREGROUND);
+			gUpdateDisplay = true;
+		}
 		return;
 	}
 
@@ -201,6 +232,8 @@ static void APP_HandleIncoming(void)
 					// let the user see DW is not active
 					gDualWatchActive = false;
 					gUpdateStatus    = true;
+
+					gUpdateDisplay = true;
 
 					return;
 				}
@@ -433,7 +466,7 @@ void APP_StartListening(FUNCTION_Type_t Function, const bool reset_am_fix)
 	#endif
 
 	#ifdef ENABLE_AM_FIX
-		if (gEeprom.VfoInfo[gEeprom.RX_CHANNEL].IsAM && reset_am_fix)
+		if (gEeprom.VfoInfo[gEeprom.RX_CHANNEL].AM_mode && reset_am_fix)
 			AM_fix_reset(gEeprom.RX_CHANNEL);      // TODO: only reset it when moving channel/frequency
 	#endif
 
@@ -505,7 +538,7 @@ void APP_StartListening(FUNCTION_Type_t Function, const bool reset_am_fix)
 	uint8_t mixer     = orig_mixer;
 	uint8_t pga       = orig_pga;
 
-	if (gRxVfo->IsAM)
+	if (gRxVfo->AM_mode)
 	{	// AM
 /*
 		#ifndef ENABLE_AM_FIX
@@ -553,7 +586,7 @@ void APP_StartListening(FUNCTION_Type_t Function, const bool reset_am_fix)
 	#ifdef ENABLE_VOICE
 		if (gVoiceWriteIndex == 0)
 	#endif
-			BK4819_SetAF(gRxVfo->IsAM ? BK4819_AF_AM : BK4819_AF_OPEN);
+			BK4819_SetAF(gRxVfo->AM_mode ? BK4819_AF_AM : BK4819_AF_OPEN);
 
 	FUNCTION_Select(Function);
 
@@ -611,11 +644,11 @@ static void FREQ_NextChannel(void)
 
 static void MR_NextChannel(void)
 {
-	uint8_t Ch;
-	uint8_t Ch1        = gEeprom.SCANLIST_PRIORITY_CH1[gEeprom.SCAN_LIST_DEFAULT];
-	uint8_t Ch2        = gEeprom.SCANLIST_PRIORITY_CH2[gEeprom.SCAN_LIST_DEFAULT];
-	uint8_t PreviousCh = gNextMrChannel;
-	bool    bEnabled   = gEeprom.SCAN_LIST_ENABLED[gEeprom.SCAN_LIST_DEFAULT];
+	const uint8_t Ch1        = gEeprom.SCANLIST_PRIORITY_CH1[gEeprom.SCAN_LIST_DEFAULT];
+	const uint8_t Ch2        = gEeprom.SCANLIST_PRIORITY_CH2[gEeprom.SCAN_LIST_DEFAULT];
+	const bool    bEnabled   = gEeprom.SCAN_LIST_ENABLED[gEeprom.SCAN_LIST_DEFAULT];
+	uint8_t       PreviousCh = gNextMrChannel;
+	uint8_t       Ch;
 
 	if (bEnabled)
 	{
@@ -623,7 +656,7 @@ static void MR_NextChannel(void)
 		{
 			gPreviousMrChannel = gNextMrChannel;
 			if (RADIO_CheckValidChannel(Ch1, false, 0))
-				gNextMrChannel   = Ch1;
+				gNextMrChannel = Ch1;
 			else
 				gCurrentScanList = 1;
 		}
@@ -631,41 +664,46 @@ static void MR_NextChannel(void)
 		if (gCurrentScanList == 1)
 		{
 			if (RADIO_CheckValidChannel(Ch2, false, 0))
-				gNextMrChannel   = Ch2;
+				gNextMrChannel = Ch2;
 			else
 				gCurrentScanList = 2;
 		}
 
 		if (gCurrentScanList == 2)
+		{
 			gNextMrChannel = gPreviousMrChannel;
-		else
-			goto Skip;
+			Ch = RADIO_FindNextChannel(gNextMrChannel + gScanState, gScanState, true, gEeprom.SCAN_LIST_DEFAULT);
+			if (Ch == 0xFF)
+				return;
+
+			gNextMrChannel = Ch;
+		}
+	}
+	else
+	{
+		Ch = RADIO_FindNextChannel(gNextMrChannel + gScanState, gScanState, true, gEeprom.SCAN_LIST_DEFAULT);
+		if (Ch == 0xFF)
+			return;
+
+		gNextMrChannel = Ch;
 	}
 
-	Ch = RADIO_FindNextChannel(gNextMrChannel + gScanState, gScanState, true, gEeprom.SCAN_LIST_DEFAULT);
-	if (Ch == 0xFF)
-		return;
-
-	gNextMrChannel = Ch;
-
-Skip:
 	if (PreviousCh != gNextMrChannel)
 	{
 		gEeprom.MrChannel[gEeprom.RX_CHANNEL]     = gNextMrChannel;
 		gEeprom.ScreenChannel[gEeprom.RX_CHANNEL] = gNextMrChannel;
 
-		RADIO_ConfigureChannel(gEeprom.RX_CHANNEL, 2);
+		RADIO_ConfigureChannel(gEeprom.RX_CHANNEL, VFO_CONFIGURE_RELOAD);
 		RADIO_SetupRegisters(true);
 
 		gUpdateDisplay = true;
 	}
 
-	ScanPauseDelayIn_10ms = 20;
-
+	ScanPauseDelayIn_10ms = scan_pause_delay_in_3_10ms;
 	bScanKeepFrequency    = false;
 
 	if (bEnabled)
-		if (++gCurrentScanList >= 2)
+		if (++gCurrentScanList > 2)
 			gCurrentScanList = 0;
 }
 
@@ -911,7 +949,8 @@ static void APP_HandleVox(void)
 		{
 			if (gFlagEndTransmission)
 			{
-				FUNCTION_Select(FUNCTION_FOREGROUND);
+				//if (gCurrentFunction != FUNCTION_FOREGROUND)
+					FUNCTION_Select(FUNCTION_FOREGROUND);
 			}
 			else
 			{
@@ -919,12 +958,14 @@ static void APP_HandleVox(void)
 
 				if (gEeprom.REPEATER_TAIL_TONE_ELIMINATION == 0)
 				{
-					FUNCTION_Select(FUNCTION_FOREGROUND);
+					//if (gCurrentFunction != FUNCTION_FOREGROUND)
+						FUNCTION_Select(FUNCTION_FOREGROUND);
 				}
 				else
 					gRTTECountdown = gEeprom.REPEATER_TAIL_TONE_ELIMINATION * 10;
 			}
 
+			gUpdateStatus        = true;
 			gUpdateDisplay       = true;
 			gFlagEndTransmission = false;
 		}
@@ -958,14 +999,16 @@ void APP_Update(void)
 	#endif
 
 	if (gCurrentFunction == FUNCTION_TRANSMIT && gTxTimeoutReached)
-	{	// transmitting, but just timed out
+	{	// transmitter timed out
+		gTxTimeoutReached = false;
 
-		gTxTimeoutReached    = false;
 		gFlagEndTransmission = true;
-
 		APP_EndTransmission();
-		AUDIO_PlayBeep(BEEP_500HZ_60MS_DOUBLE_BEEP);
+
+		AUDIO_PlayBeep(BEEP_880HZ_60MS_TRIPLE_BEEP);
+
 		RADIO_SetVfoState(VFO_STATE_TIMEOUT);
+
 		GUI_DisplayScreen();
 	}
 
@@ -1014,6 +1057,7 @@ void APP_Update(void)
 	#endif
 	{
 		MENU_SelectNextCode();
+
 		gScheduleScanListen = false;
 	}
 
@@ -1099,7 +1143,8 @@ void APP_Update(void)
 			else
 			if ((IS_NOT_NOAA_CHANNEL(gEeprom.ScreenChannel[0]) && IS_NOT_NOAA_CHANNEL(gEeprom.ScreenChannel[1])) || !gIsNoaaMode)
 			{
-				FUNCTION_Select(FUNCTION_POWER_SAVE);
+				//if (gCurrentFunction != FUNCTION_POWER_SAVE)
+					FUNCTION_Select(FUNCTION_POWER_SAVE);
 			}
 			else
 			{
@@ -1122,7 +1167,8 @@ void APP_Update(void)
 			}
 			else
 			{
-				FUNCTION_Select(FUNCTION_POWER_SAVE);
+				//if (gCurrentFunction != FUNCTION_POWER_SAVE)
+					FUNCTION_Select(FUNCTION_POWER_SAVE);
 			}
 
 			gSchedulePowerSave = false;
@@ -1345,7 +1391,7 @@ void APP_TimeSlice10ms(void)
 	#endif
 
 	#ifdef ENABLE_AM_FIX
-		if (gEeprom.VfoInfo[gEeprom.RX_CHANNEL].IsAM && gSetting_AM_fix)
+		if (gEeprom.VfoInfo[gEeprom.RX_CHANNEL].AM_mode && gSetting_AM_fix)
 			AM_fix_10ms(gEeprom.RX_CHANNEL);
 	#endif
 
@@ -1461,8 +1507,10 @@ void APP_TimeSlice10ms(void)
 		{
 			if (--gRTTECountdown == 0)
 			{
-				FUNCTION_Select(FUNCTION_FOREGROUND);
+				//if (gCurrentFunction != FUNCTION_FOREGROUND)
+					FUNCTION_Select(FUNCTION_FOREGROUND);
 
+				gUpdateStatus  = true;
 				gUpdateDisplay = true;
 			}
 		}
@@ -1725,8 +1773,8 @@ void APP_TimeSlice500ms(void)
 						{
 							BK4819_StopScan();
 
-							RADIO_ConfigureChannel(0, 2);
-							RADIO_ConfigureChannel(1, 2);
+							RADIO_ConfigureChannel(0, VFO_CONFIGURE_RELOAD);
+							RADIO_ConfigureChannel(1, VFO_CONFIGURE_RELOAD);
 
 							RADIO_SetupRegisters(true);
 						}
@@ -1817,7 +1865,8 @@ void APP_TimeSlice500ms(void)
 
 						gReducedService = true;
 
-						FUNCTION_Select(FUNCTION_POWER_SAVE);
+						//if (gCurrentFunction != FUNCTION_POWER_SAVE)
+							FUNCTION_Select(FUNCTION_POWER_SAVE);
 
 						ST7565_Configure_GPIO_B11();
 
@@ -2007,7 +2056,7 @@ static void APP_ProcessKey(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
 		{
 			SETTINGS_SaveChannel(gTxVfo->CHANNEL_SAVE, gEeprom.TX_CHANNEL, gTxVfo, gFlagSaveChannel);
 			gFlagSaveChannel = false;
-			RADIO_ConfigureChannel(gEeprom.TX_CHANNEL, 1);
+			RADIO_ConfigureChannel(gEeprom.TX_CHANNEL, VFO_CONFIGURE);
 			RADIO_SetupRegisters(true);
 			GUI_SelectNextDisplay(DISPLAY_MAIN);
 		}
@@ -2178,7 +2227,10 @@ static void APP_ProcessKey(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
 					ALARM_Off();
 
 					if (gEeprom.REPEATER_TAIL_TONE_ELIMINATION == 0)
-						FUNCTION_Select(FUNCTION_FOREGROUND);
+					{
+						//if (gCurrentFunction != FUNCTION_FOREGROUND)
+							FUNCTION_Select(FUNCTION_FOREGROUND);
+					}
 					else
 						gRTTECountdown = gEeprom.REPEATER_TAIL_TONE_ELIMINATION * 10;
 
@@ -2303,7 +2355,8 @@ Skip:
 		{
 			SETTINGS_SaveChannel(gTxVfo->CHANNEL_SAVE, gEeprom.TX_CHANNEL, gTxVfo, gRequestSaveChannel);
 			if (gScreenToDisplay != DISPLAY_SCANNER)
-				gVfoConfigureMode = VFO_CONFIGURE_1;
+				if (gVfoConfigureMode == VFO_CONFIGURE_NONE)  // 'if' is so as we don't wipe out previously setting this variable elsewhere
+					gVfoConfigureMode = VFO_CONFIGURE;
 		}
 		else
 		{
@@ -2315,8 +2368,7 @@ Skip:
 		gRequestSaveChannel = 0;
 	}
 
-
-	if (gVfoConfigureMode != VFO_CONFIGURE_0)
+	if (gVfoConfigureMode != VFO_CONFIGURE_NONE)
 	{
 		if (gFlagResetVfos)
 		{
@@ -2330,7 +2382,7 @@ Skip:
 			gRequestDisplayScreen = DISPLAY_MAIN;
 
 		gFlagReconfigureVfos = true;
-		gVfoConfigureMode    = VFO_CONFIGURE_0;
+		gVfoConfigureMode    = VFO_CONFIGURE_NONE;
 		gFlagResetVfos       = false;
 	}
 

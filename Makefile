@@ -7,9 +7,9 @@ ENABLE_SWD                    := 0
 ENABLE_OVERLAY                := 1
 ENABLE_UART                   := 1
 ENABLE_AIRCOPY                := 0
-ENABLE_FMRADIO                := 1
+ENABLE_FMRADIO                := 0
 ENABLE_NOAA                   := 0
-ENABLE_VOICE                  := 1
+ENABLE_VOICE                  := 0
 ENABLE_ALARM                  := 0
 ENABLE_BIG_FREQ               := 1
 ENABLE_SMALL_BOLD             := 0
@@ -26,6 +26,7 @@ ENABLE_NO_SCAN_TIMEOUT        := 1
 ENABLE_AM_FIX                 := 0
 ENABLE_AM_FIX_SHOW_DATA       := 0
 ENABLE_SQUELCH1_LOWER         := 1
+ENABLE_RSSI_BAR               := 1
 ENABLE_AUDIO_BAR              := 0
 #ENABLE_COPY_CHAN_TO_VFO      := 1
 #ENABLE_SINGLE_VFO_CHAN       := 1
@@ -121,7 +122,6 @@ OBJS += ui/inputbox.o
 OBJS += ui/lock.o
 OBJS += ui/main.o
 OBJS += ui/menu.o
-OBJS += ui/rssi.o
 OBJS += ui/scanner.o
 OBJS += ui/status.o
 OBJS += ui/ui.o
@@ -230,6 +230,9 @@ ifeq ($(ENABLE_AM_FIX_TEST1),1)
 endif
 ifeq ($(ENABLE_SQUELCH1_LOWER),1)
 	CFLAGS  += -DENABLE_SQUELCH1_LOWER
+endif
+ifeq ($(ENABLE_RSSI_BAR),1)
+	CFLAGS  += -DENABLE_RSSI_BAR
 endif
 ifeq ($(ENABLE_AUDIO_BAR),1)
 	CFLAGS  += -DENABLE_AUDIO_BAR

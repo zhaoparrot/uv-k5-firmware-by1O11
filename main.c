@@ -85,8 +85,8 @@ void Main(void)
 
 	BOARD_EEPROM_LoadMoreSettings();
 
-	RADIO_ConfigureChannel(0, 2);
-	RADIO_ConfigureChannel(1, 2);
+	RADIO_ConfigureChannel(0, VFO_CONFIGURE_RELOAD);
+	RADIO_ConfigureChannel(1, VFO_CONFIGURE_RELOAD);
 
 	RADIO_SelectVfos();
 
@@ -191,10 +191,10 @@ void Main(void)
 			gNextTimeslice = false;
 		}
 
-		if (gNextTimeslice500ms)
+		if (gNextTimeslice_500ms)
 		{
 			APP_TimeSlice500ms();
-			gNextTimeslice500ms = false;
+			gNextTimeslice_500ms = false;
 		}
 	}
 }
