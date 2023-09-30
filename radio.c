@@ -417,7 +417,7 @@ void RADIO_ConfigureChannel(const unsigned int VFO, const unsigned int configure
 	if (gEeprom.VfoInfo[VFO].AM_mode)
 	{	// freq/chan is in AM mode
 		gEeprom.VfoInfo[VFO].SCRAMBLING_TYPE         = 0;
-		gEeprom.VfoInfo[VFO].DTMF_DECODING_ENABLE    = false;  // no reason to disable DTMF decoding, aircraft use it on SSB
+//		gEeprom.VfoInfo[VFO].DTMF_DECODING_ENABLE    = false;  // no reason to disable DTMF decoding, aircraft use it on SSB
 		gEeprom.VfoInfo[VFO].freq_config_RX.CodeType = CODE_TYPE_OFF;
 		gEeprom.VfoInfo[VFO].freq_config_TX.CodeType = CODE_TYPE_OFF;
 	}
@@ -747,9 +747,7 @@ void RADIO_SetupRegisters(bool bSwitchToFunction0)
 	#endif
 
 	#if 0
-		// there's no reason the DTMF decoder can't be used in AM RX mode too
-		// aircraft comms use it on HF (AM and SSB)
-		if (gRxVfo->AM_mode || (!gRxVfo->DTMF_DECODING_ENABLE && !gSetting_KILLED))
+		if (!gRxVfo->DTMF_DECODING_ENABLE && !gSetting_KILLED)
 		{
 			BK4819_DisableDTMF();
 		}
@@ -759,7 +757,7 @@ void RADIO_SetupRegisters(bool bSwitchToFunction0)
 			InterruptMask |= BK4819_REG_3F_DTMF_5TONE_FOUND;
 		}
 	#else
-		if (gCurrentFunction != FUNCTION_TRANSMIT && gSetting_live_DTMF_decoder)
+		if (gCurrentFunction != FUNCTION_TRANSMIT)
 		{
 			BK4819_EnableDTMF();
 			InterruptMask |= BK4819_REG_3F_DTMF_5TONE_FOUND;

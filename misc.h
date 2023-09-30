@@ -91,8 +91,8 @@ extern const uint16_t        fm_restore_countdown_10ms;
 
 extern const uint8_t         menu_timeout_500ms;
 
+extern const uint8_t         DTMF_RX_live_timeout_500ms;
 extern const uint8_t         DTMF_RX_timeout_500ms;
-extern const uint8_t         DTMF_RX_timeout_saved_500ms;
 extern const uint8_t         DTMF_decode_ring_countdown_500ms;
 extern const uint8_t         DTMF_txstop_countdown_500ms;
 
@@ -167,7 +167,7 @@ extern uint8_t               gEEPROM_1EC0_1[8];
 extern uint8_t               gEEPROM_1EC0_2[8];
 extern uint8_t               gEEPROM_1EC0_3[8];
 
-extern uint16_t              gEEPROM_RSSI_CALIB[3][4];
+extern uint16_t              gEEPROM_RSSI_CALIB[2][4];
 
 extern uint16_t              gEEPROM_1F8A;
 extern uint16_t              gEEPROM_1F8C;
@@ -238,7 +238,6 @@ extern bool                  gFlagSaveChannel;
 #ifdef ENABLE_FMRADIO
 	extern bool              gFlagSaveFM;
 #endif
-extern uint8_t               gDTMF_RequestPending;
 extern bool                  g_CDCSS_Lost;
 extern uint8_t               gCDCSSCodeType;
 extern bool                  g_CTCSS_Lost;

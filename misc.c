@@ -26,9 +26,9 @@ const uint16_t    fm_restore_countdown_10ms        =  5000 / 10;   // 5 seconds
 
 const uint8_t     menu_timeout_500ms               = 20000 / 500;  // 20 seconds
 
-const uint8_t     DTMF_RX_timeout_500ms            =  2500 / 500;  // 2.5 seconds
-const uint8_t     DTMF_RX_timeout_saved_500ms      = 20000 / 500;  // 20 seconds
-const uint8_t     DTMF_decode_ring_countdown_500ms = 15000 / 500;  // 15 seconds
+const uint8_t     DTMF_RX_live_timeout_500ms       =  6000 / 500;  // 6 seconds live decoder on screen
+const uint8_t     DTMF_RX_timeout_500ms            = 10000 / 500;  // 10 seconds till we wipe the DTMF receiver
+const uint8_t     DTMF_decode_ring_countdown_500ms = 15000 / 500;  // 15 seconds .. time we sound the ringing for
 const uint8_t     DTMF_txstop_countdown_500ms      =  3000 / 500;  // 6 seconds
 
 const uint8_t     key_input_timeout_500ms          =  8000 / 500;  // 8 seconds
@@ -103,7 +103,7 @@ uint8_t           gEEPROM_1EC0_1[8];
 uint8_t           gEEPROM_1EC0_2[8];
 uint8_t           gEEPROM_1EC0_3[8];
 
-uint16_t          gEEPROM_RSSI_CALIB[3][4];
+uint16_t          gEEPROM_RSSI_CALIB[2][4];
 
 uint16_t          gEEPROM_1F8A;
 uint16_t          gEEPROM_1F8C;
@@ -174,7 +174,6 @@ bool              gFlagSaveChannel;
 #ifdef ENABLE_FMRADIO
 	bool          gFlagSaveFM;
 #endif
-uint8_t           gDTMF_RequestPending;
 bool              g_CDCSS_Lost;
 uint8_t           gCDCSSCodeType;
 bool              g_CTCSS_Lost;

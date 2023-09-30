@@ -36,6 +36,8 @@
 #include "ui/main.h"
 #include "ui/ui.h"
 
+bool center_line_is_free = true;
+
 // ***************************************************************************
 
 #ifdef ENABLE_AUDIO_BAR
@@ -117,36 +119,40 @@
 #if defined(ENABLE_RSSI_BAR)
 	void UI_DisplayRSSIBar(const int16_t rssi, const bool now)
 	{
+		const int16_t      s9_dBm       = -73;                   // S9
+		const int16_t      s0_dBm       = -127;                  // S0
+
+		const int16_t      bar_max_dBm  = s9_dBm + 30;           // S9+30dB
+		const int16_t      bar_min_dBm  = s0_dBm;                // S0
+
+		// ************
+
+		const unsigned int txt_width    = 7 * 8;                 // 8 text chars
+		const unsigned int bar_x        = 2 + txt_width + 4;     // X coord of bar graph
+		const unsigned int bar_width    = LCD_WIDTH - 1 - bar_x;
+
+		const int16_t      dBm          = (rssi / 2) - 160;
+		const int16_t      clamped_dBm  = (dBm <= bar_min_dBm) ? bar_min_dBm : (dBm >= bar_max_dBm) ? bar_max_dBm : dBm;
+		const unsigned int bar_range_dB = bar_max_dBm - bar_min_dBm;
+		const unsigned int len          = ((clamped_dBm - bar_min_dBm) * bar_width) / bar_range_dB;
+
+		const unsigned int line         = 3;
+		uint8_t           *pLine        = gFrameBuffer[line];
+
 		char               s[16];
 		unsigned int       i;
-
-		const int16_t      max_dB      = -33;
-		const int16_t      min_dB      = -127;
-
-		const unsigned int txt_width   = 7 * 8;         // 8 text chars
-		const unsigned int bar_x       = txt_width + 4;
-		const unsigned int bar_width   = LCD_WIDTH - 1 - bar_x;
-
-		const int16_t      dBm         = (rssi / 2) - 160;
-		const int16_t      clamped_dBm = (dBm < min_dB) ? min_dB : (dBm > max_dB) ? max_dB : dBm;
-		const unsigned int width       = max_dB - min_dB;
-		const unsigned int len         = (((clamped_dBm - min_dB) * bar_width) + (width / 2)) / width;
-
-		const unsigned int line        = 3;
-		uint8_t           *pLine       = gFrameBuffer[line];
-
-		unsigned int       s_level     = 0;
+		unsigned int       s_level      = 0;        // S0
 
 		if (gEeprom.KEY_LOCK && gKeypadLocked > 0)
 			return;     // display is in use
 		if (gCurrentFunction == FUNCTION_TRANSMIT || gScreenToDisplay != DISPLAY_MAIN)
 			return;     // display is in use
 
-		if (dBm >= -63)                    // S9+10dB
-			s_level = 10 + (((dBm - -63) / 10) * 10);
+		if (dBm >= (s9_dBm + 10))                   // S9+10dB
+			s_level = ((dBm - s9_dBm) / 10) * 10;
 		else
-		if (clamped_dBm >= -127)           // S0
-			s_level = (clamped_dBm - -127) / 6;
+		if (dBm >= s0_dBm)                          // S0
+			s_level = (dBm - s0_dBm) / 6;           // 6dB per S point
 
 		if (now)
 			memset(pLine, 0, LCD_WIDTH);
@@ -154,7 +160,7 @@
 		if (s_level < 10)
 			sprintf(s, "%-4d S%u ", dBm, s_level);  // S0 ~ S9
 		else
-			sprintf(s, "%-4d +%2u", dBm, s_level);  // S9+
+			sprintf(s, "%-4d +%2u", dBm, s_level);  // S9+XX
 		UI_PrintStringSmall(s, 2, 0, line);
 
 		#if 1
@@ -176,13 +182,16 @@ void UI_UpdateRSSI(const int16_t rssi, const int vfo)
 {
 	#ifdef ENABLE_RSSI_BAR
 
+		if (!center_line_is_free)
+			return;
+		
 		const bool rx = (gCurrentFunction == FUNCTION_RECEIVE ||
 		                 gCurrentFunction == FUNCTION_MONITOR ||
 		                 gCurrentFunction == FUNCTION_INCOMING);
 
 		#if defined(ENABLE_AM_FIX) && defined(ENABLE_AM_FIX_SHOW_DATA)
 			if (gEeprom.VfoInfo[gEeprom.RX_CHANNEL].AM_mode && gSetting_AM_fix)
-			{
+			{	// AM test data is currently being shown
 			}
 			else
 		#endif
@@ -191,13 +200,18 @@ void UI_UpdateRSSI(const int16_t rssi, const int vfo)
 
 	#else
 
+//		const int16_t dBm   = (rssi / 2) - 160;
 		const uint8_t Line  = (vfo == 0) ? 3 : 7;
 		uint8_t      *pLine = gFrameBuffer[Line - 1];
-//		const int16_t dBm = (rssi / 2) - 160;
+
+		// TODO: sort out all 8 values from the eeprom
 
 		#if 0
-			//const unsigned int band = gRxVfo->Band;
-			const unsigned int band = 0;
+			// dBm     -105  -100  -95   -90      -70   -65   -60   -55
+			// RSSI     110   120   130   140      180   190   200   210
+			// 0000C0   6E 00 78 00 82 00 8C 00    B4 00 BE 00 C8 00 D2 00
+			//
+			const unsigned int band = 1;
 			const int16_t level0  = gEEPROM_RSSI_CALIB[band][0];
 			const int16_t level1  = gEEPROM_RSSI_CALIB[band][1];
 			const int16_t level2  = gEEPROM_RSSI_CALIB[band][2];
@@ -277,8 +291,9 @@ void UI_DisplayMain(void)
 {
 	char         String[16];
 	unsigned int vfo_num;
-	bool         center_line_is_free = true;
 
+	center_line_is_free = true;
+	
 //	#ifdef SINGLE_VFO_CHAN
 //		const bool single_vfo = (gEeprom.DUAL_WATCH == DUAL_WATCH_OFF && gEeprom.CROSS_BAND_RX_TX == CROSS_BAND_OFF) ? true : false;
 //	#else
@@ -329,7 +344,7 @@ void UI_DisplayMain(void)
 						strcpy(String, (gDTMF_State == DTMF_STATE_CALL_OUT_RSP) ? "CALL OUT(RSP)" : "CALL OUT");
 					else
 					if (gDTMF_CallState == DTMF_CALL_STATE_RECEIVED)
-						sprintf(String, "CALL:%s", (DTMF_FindContact(gDTMF_Caller, Contact)) ? Contact : gDTMF_Caller);
+						sprintf(String, "CALL FRM:%s", (DTMF_FindContact(gDTMF_Caller, Contact)) ? Contact : gDTMF_Caller);
 					else
 					if (gDTMF_IsTx)
 						strcpy(String, (gDTMF_State == DTMF_STATE_TX_SUCC) ? "DTMF TX(SUCC)" : "DTMF TX");
@@ -671,7 +686,7 @@ void UI_DisplayMain(void)
 			UI_PrintStringSmall(String, LCD_WIDTH + 70, 0, Line + 1);
 		}
 
-		// show the DTMF decoding symbol(
+		// show the DTMF decoding symbol
 		if (gEeprom.VfoInfo[vfo_num].DTMF_DECODING_ENABLE || gSetting_KILLED)
 			UI_PrintStringSmall("DTMF", LCD_WIDTH + 78, 0, Line + 1);
 
@@ -687,13 +702,19 @@ void UI_DisplayMain(void)
 		                 gCurrentFunction == FUNCTION_MONITOR ||
 		                 gCurrentFunction == FUNCTION_INCOMING);
 
+		#ifdef ENABLE_AUDIO_BAR
+			if (gSetting_mic_bar && gCurrentFunction == FUNCTION_TRANSMIT)
+				UI_DisplayAudioBar();
+			else
+		#endif
+
 		#if defined(ENABLE_AM_FIX) && defined(ENABLE_AM_FIX_SHOW_DATA)
 			if (gEeprom.VfoInfo[gEeprom.RX_CHANNEL].AM_mode && gSetting_AM_fix)
 			{
 				if (rx)
 				{
 					AM_fix_print_data(gEeprom.RX_CHANNEL, String);
-					UI_PrintStringSmall(String, 0, 0, 3);
+					UI_PrintStringSmall(String, 2, 0, 3);
 				}
 			}
 			else
@@ -705,25 +726,28 @@ void UI_DisplayMain(void)
 			else
 		#endif
 
-		#ifdef ENABLE_AUDIO_BAR
-			if (gSetting_mic_bar && gCurrentFunction == FUNCTION_TRANSMIT)
-				UI_DisplayAudioBar();
-			else
-		#endif
-
 		if (rx || gCurrentFunction == FUNCTION_FOREGROUND)
 		{
-			if (gSetting_live_DTMF_decoder && gDTMF_ReceivedSaved[0] >= 32)
-			{	// show live DTMF decode
-				const unsigned int len = strlen(gDTMF_ReceivedSaved);
-				unsigned int       idx = 0;
-				while ((len - idx) > (17 - 5))   // display the last 'n' on-screen fittable chars
-					idx++;
-				strcpy(String, "DTMF ");
-				strcat(String, gDTMF_ReceivedSaved + idx);
-				UI_PrintStringSmall(String, 2, 0, 3);
-			}
-
+			#if 1
+				if (gSetting_live_DTMF_decoder && gDTMF_RX_live[0] != 0)
+				{	// show live DTMF decode
+					const unsigned int len = strlen(gDTMF_RX_live);
+					const unsigned int idx = (len > (17 - 5)) ? len - (17 - 5) : 0;  // limit to last 'n' chars
+					strcpy(String, "DTMF ");
+					strcat(String, gDTMF_RX_live + idx);
+					UI_PrintStringSmall(String, 2, 0, 3);
+				}
+			#else
+				if (gSetting_live_DTMF_decoder && gDTMF_RX_index > 0)
+				{	// show live DTMF decode
+					const unsigned int len = gDTMF_RX_index;
+					const unsigned int idx = (len > (17 - 5)) ? len - (17 - 5) : 0;  // limit to last 'n' chars
+					strcpy(String, "DTMF ");
+					strcat(String, gDTMF_RX + idx);
+					UI_PrintStringSmall(String, 2, 0, 3);
+				}
+			#endif
+			
 			#ifdef ENABLE_SHOW_CHARGE_LEVEL
 				else
 				if (gChargingWithTypeC)

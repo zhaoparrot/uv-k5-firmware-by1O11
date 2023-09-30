@@ -177,10 +177,23 @@ static void processFKeyFunction(const KEY_Code_t Key, const bool beep)
 				gRequestSaveVFO   = true;
 				gVfoConfigureMode = VFO_CONFIGURE_RELOAD;
 			#else
-				// toggle scanlist-1
+				// toggle scanlist-1 and scanlist 2
 				if (gScreenToDisplay != DISPLAY_SCANNER)
 				{
-					gTxVfo->SCANLIST1_PARTICIPATION = gTxVfo->SCANLIST1_PARTICIPATION ? 0 : 1;
+					if (gTxVfo->SCANLIST1_PARTICIPATION)
+					{
+						if (gTxVfo->SCANLIST2_PARTICIPATION)
+							gTxVfo->SCANLIST1_PARTICIPATION = 0;
+						else
+							gTxVfo->SCANLIST2_PARTICIPATION = 1;
+					}
+					else
+					{
+						if (gTxVfo->SCANLIST2_PARTICIPATION)
+							gTxVfo->SCANLIST2_PARTICIPATION = 0;
+						else
+							gTxVfo->SCANLIST1_PARTICIPATION = 1;
+					}
 					SETTINGS_UpdateChannel(gTxVfo->CHANNEL_SAVE, gTxVfo, true);
 					gVfoConfigureMode = VFO_CONFIGURE;
 					gFlagResetVfos    = true;
@@ -439,8 +452,16 @@ static void MAIN_Key_DIGITS(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
 static void MAIN_Key_EXIT(bool bKeyPressed, bool bKeyHeld)
 {
 	if (!bKeyHeld && bKeyPressed)
-	{
+	{	// exit key pressed
+
 		gBeepToPlay = BEEP_1KHZ_60MS_OPTIONAL;
+
+		if (gDTMF_CallState != DTMF_CALL_STATE_NONE && gCurrentFunction != FUNCTION_TRANSMIT)
+		{	// clear CALL mode being displayed
+			gDTMF_CallState = DTMF_CALL_STATE_NONE;
+			gUpdateDisplay  = true;
+			return;
+		}
 
 		#ifdef ENABLE_FMRADIO
 			if (!gFmRadioMode)
@@ -480,7 +501,8 @@ static void MAIN_Key_EXIT(bool bKeyPressed, bool bKeyHeld)
 	}
 
 	if (bKeyHeld && bKeyPressed)
-	{
+	{	// exit key held down
+
 		if (gInputBoxIndex > 0)
 		{	// cancel key input mode (channel/frequency entry)
 			gDTMF_InputMode       = false;
@@ -496,7 +518,7 @@ static void MAIN_Key_EXIT(bool bKeyPressed, bool bKeyHeld)
 static void MAIN_Key_MENU(const bool bKeyPressed, const bool bKeyHeld)
 {
 	if (bKeyHeld)
-	{	// key held down (long press)
+	{	// menu key held down (long press)
 
 		if (bKeyPressed)
 		{
@@ -547,6 +569,7 @@ static void MAIN_Key_MENU(const bool bKeyPressed, const bool bKeyHeld)
 						gBeepToPlay = BEEP_1KHZ_60MS_OPTIONAL;
 
 
+						// TODO: finish this
 
 						//gEeprom.RX_CHANNEL = () & 1;   // swap to the VFO
 
@@ -564,13 +587,13 @@ static void MAIN_Key_MENU(const bool bKeyPressed, const bool bKeyHeld)
 		return;
 	}
 
-	if (!bKeyPressed)
-	{
-		bool bFlag;
+	if (!bKeyPressed && !gDTMF_InputMode)
+	{	// menu key released
+		const bool bFlag = (gInputBoxIndex == 0);
+		gInputBoxIndex   = 0;
 
-		gBeepToPlay    = BEEP_1KHZ_60MS_OPTIONAL;
-		bFlag          = (gInputBoxIndex == 0);
-		gInputBoxIndex = 0;
+		gBeepToPlay = BEEP_1KHZ_60MS_OPTIONAL;
+		
 		if (bFlag)
 		{
 			gFlagRefreshSetting   = true;
